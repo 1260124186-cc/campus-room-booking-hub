@@ -161,8 +161,10 @@ func overlaps(a, b domain.Booking) bool {
 
 func cloneRoom(room domain.Room) domain.Room {
 	room.Equipment = append([]string(nil), room.Equipment...)
-	manager := *room.Manager
-	room.Manager = &manager
+	if room.Manager != nil {
+		manager := *room.Manager
+		room.Manager = &manager
+	}
 	return room
 }
 

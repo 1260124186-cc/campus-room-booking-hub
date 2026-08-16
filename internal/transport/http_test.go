@@ -38,6 +38,9 @@ func TestHealthAndRooms(t *testing.T) {
 	}
 
 	response = perform(handler, http.MethodGet, "/rooms", nil)
+	if response.Code != http.StatusOK {
+		t.Fatalf("rooms status = %d", response.Code)
+	}
 	var body struct {
 		Rooms []domain.Room `json:"rooms"`
 	}
@@ -46,6 +49,23 @@ func TestHealthAndRooms(t *testing.T) {
 	}
 	if len(body.Rooms) != 3 {
 		t.Fatalf("room count = %d, want 3", len(body.Rooms))
+	}
+	var unassigned, assigned *domain.Room
+	for index := range body.Rooms {
+		room := &body.Rooms[index]
+		switch room.ID {
+		case "atlas-202":
+			unassigned = room
+		case "atlas-101":
+			assigned = room
+		}
+	}
+	if unassigned == nil || unassigned.Manager != nil {
+		t.Fatalf("unassigned room manager = %+v, want nil", unassigned)
+	}
+	if assigned == nil || assigned.Manager == nil ||
+		assigned.Manager.Name != "Mina Ito" || assigned.Manager.Email != "mina@example.edu" {
+		t.Fatalf("assigned room manager = %+v, want Mina Ito <mina@example.edu>", assigned)
 	}
 }
 
