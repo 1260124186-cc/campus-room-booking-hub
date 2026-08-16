@@ -83,8 +83,10 @@ func (h *Handler) occupancy(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) writeServiceError(w http.ResponseWriter, err error) {
 	switch {
-	case err == domain.ErrRoomNotFound || err == domain.ErrBookingNotFound:
-		writeError(w, http.StatusNotFound, err.Error())
+	case errors.Is(err, domain.ErrRoomNotFound):
+		writeError(w, http.StatusNotFound, domain.ErrRoomNotFound.Error())
+	case errors.Is(err, domain.ErrBookingNotFound):
+		writeError(w, http.StatusNotFound, domain.ErrBookingNotFound.Error())
 	case errors.Is(err, domain.ErrSlotTaken):
 		writeError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, domain.ErrAlreadyChecked):

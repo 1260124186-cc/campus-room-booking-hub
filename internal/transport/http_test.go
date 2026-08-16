@@ -167,6 +167,13 @@ func TestCheckInUnknownBookingReturnsNotFound(t *testing.T) {
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("unknown check-in status = %d", response.Code)
 	}
+	var body map[string]string
+	if err := json.NewDecoder(response.Result().Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body["error"] != domain.ErrBookingNotFound.Error() {
+		t.Fatalf("unknown check-in error = %q, want %q", body["error"], domain.ErrBookingNotFound)
+	}
 }
 
 func TestContextDeadlineAtStoreBoundary(t *testing.T) {
