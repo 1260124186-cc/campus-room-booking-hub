@@ -159,8 +159,9 @@ func overlaps(a, b domain.Booking) bool {
 	return a.StartMinute < bEnd && b.StartMinute < aEnd
 }
 
+// cloneRoom 返回房间的深拷贝，确保调用方对查询结果的修改不会反向写回内存中的房间目录。
 func cloneRoom(room domain.Room) domain.Room {
-	room.Equipment = room.Equipment[:len(room.Equipment)]
+	room.Equipment = append([]string(nil), room.Equipment...)
 	if room.Manager != nil {
 		manager := *room.Manager
 		room.Manager = &manager
