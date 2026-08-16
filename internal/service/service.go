@@ -48,11 +48,7 @@ func (s *Service) CreateBooking(ctx context.Context, request domain.BookingReque
 		Status:          "reserved",
 		CreatedAt:       now.UTC(),
 	}
-	if s.bookings.HasConflict(ctx, booking) {
-		return domain.Booking{}, domain.ErrSlotTaken
-	}
-	time.Sleep(50 * time.Millisecond)
-	if err := s.bookings.Save(ctx, booking); err != nil {
+	if err := s.bookings.Reserve(ctx, booking); err != nil {
 		return domain.Booking{}, fmt.Errorf("reserve booking: %w", err)
 	}
 	return booking, nil

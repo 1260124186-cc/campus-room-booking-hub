@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -127,20 +128,35 @@ func TestConcurrentReservationsHaveSingleWinner(t *testing.T) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	successes := 0
+	conflicts := 0
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := svc.CreateBooking(ctx, request); err == nil {
+			_, err := svc.CreateBooking(ctx, request)
+			switch {
+			case err == nil:
 				mu.Lock()
 				successes++
 				mu.Unlock()
+			case errors.Is(err, domain.ErrSlotTaken):
+				mu.Lock()
+				conflicts++
+				mu.Unlock()
+			default:
+				t.Errorf("CreateBooking() error = %v, want ErrSlotTaken", err)
 			}
 		}()
 	}
 	wg.Wait()
 	if successes != 1 {
 		t.Fatalf("successful reservations = %d, want 1", successes)
+	}
+	if conflicts != workers-1 {
+		t.Fatalf("conflicting reservations = %d, want %d", conflicts, workers-1)
+	}
+	if bookings := memory.ListBookings(ctx, request.Date); len(bookings) != 1 {
+		t.Fatalf("persisted bookings = %d, want 1", len(bookings))
 	}
 }
 
