@@ -48,12 +48,10 @@ func (s *Service) CreateBooking(ctx context.Context, request domain.BookingReque
 		Status:          "reserved",
 		CreatedAt:       now.UTC(),
 	}
-	if s.bookings.HasConflict(ctx, booking) {
-		return domain.Booking{}, domain.ErrSlotTaken
-	}
-	time.Sleep(50 * time.Millisecond)
-	if err := s.bookings.Save(ctx, booking); err != nil {
-		return domain.Booking{}, fmt.Errorf("reserve booking: %w", err)
+	// Reserve 在同一把写锁内完成冲突检查与写入，避免并发下的 check-then-act 竞态：
+	// 多个请求同时通过检查后再各自写入，会留下多条相互重叠的预约。
+	if err := s.bookings.Reserve(ctx, booking); err != nil {
+		return domain.Booking{}, err
 	}
 	return booking, nil
 }
