@@ -1,0 +1,15 @@
+.git
+.codex
+.agents
+*.patch
+*.diff
+*.log
+*.tmp
+*.test
+*.out
+bin/
+dist/
+coverage/
+BUG_REPRO.md
+private/
+registry/
