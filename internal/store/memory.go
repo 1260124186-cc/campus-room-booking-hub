@@ -83,6 +83,30 @@ func (s *MemoryStore) Reserve(ctx context.Context, booking domain.Booking) error
 	return nil
 }
 
+func (s *MemoryStore) HasConflict(ctx context.Context, booking domain.Booking) bool {
+	if contextErr(ctx) != nil {
+		return true
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, existing := range s.bookings {
+		if existing.RoomID == booking.RoomID && existing.Date == booking.Date && overlaps(existing, booking) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *MemoryStore) Save(ctx context.Context, booking domain.Booking) error {
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.bookings[booking.ID] = cloneBooking(booking)
+	return nil
+}
+
 func (s *MemoryStore) GetBooking(ctx context.Context, id string) (domain.Booking, error) {
 	if err := contextErr(ctx); err != nil {
 		return domain.Booking{}, err
