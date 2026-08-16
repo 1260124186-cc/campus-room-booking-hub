@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -161,12 +162,51 @@ func TestCanceledReservationDoesNotPersist(t *testing.T) {
 	}
 }
 
+func TestCancellationAfterRoomLookupDoesNotPersistOrAffectOccupancy(t *testing.T) {
+	memory := store.NewMemoryStore()
+	ctx, cancel := context.WithCancel(context.Background())
+	catalog := cancelAfterLookupCatalog{MemoryStore: memory, cancel: cancel}
+	svc := service.New(catalog, memory)
+
+	_, err := svc.CreateBooking(ctx, domain.BookingRequest{
+		RoomID: "atlas-101", Attendee: "Disconnected", Email: "disconnected@example.edu",
+		Date: "2026-09-12", StartMinute: 600, DurationMinutes: 60, Seats: 3,
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("create error = %v, want context canceled", err)
+	}
+	if bookings := memory.ListBookings(context.Background(), "2026-09-12"); len(bookings) != 0 {
+		t.Fatalf("canceled request persisted %d booking(s)", len(bookings))
+	}
+
+	report, err := svc.Occupancy(context.Background(), "2026-09-12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, room := range report {
+		if room.RoomID == "atlas-101" && (room.BookingCount != 0 || room.ReservedSeats != 0) {
+			t.Fatalf("canceled request affected occupancy: %+v", room)
+		}
+	}
+}
+
 func TestCheckInUnknownBookingReturnsNotFound(t *testing.T) {
 	handler := newHandler()
 	response := perform(handler, http.MethodPost, "/bookings/missing/check-in", nil)
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("unknown check-in status = %d", response.Code)
 	}
+}
+
+type cancelAfterLookupCatalog struct {
+	*store.MemoryStore
+	cancel context.CancelFunc
+}
+
+func (c cancelAfterLookupCatalog) GetRoom(ctx context.Context, id string) (domain.Room, error) {
+	room, err := c.MemoryStore.GetRoom(ctx, id)
+	c.cancel()
+	return room, err
 }
 
 func TestContextDeadlineAtStoreBoundary(t *testing.T) {

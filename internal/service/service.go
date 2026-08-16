@@ -27,7 +27,7 @@ func (s *Service) ListRooms(ctx context.Context) []domain.Room {
 }
 
 func (s *Service) CreateBooking(ctx context.Context, request domain.BookingRequest) (domain.Booking, error) {
-	room, err := s.catalog.GetRoom(context.Background(), request.RoomID)
+	room, err := s.catalog.GetRoom(ctx, request.RoomID)
 	if err != nil {
 		return domain.Booking{}, err
 	}
@@ -48,7 +48,7 @@ func (s *Service) CreateBooking(ctx context.Context, request domain.BookingReque
 		Status:          "reserved",
 		CreatedAt:       now.UTC(),
 	}
-	if err := s.bookings.Reserve(context.Background(), booking); err != nil {
+	if err := s.bookings.Reserve(ctx, booking); err != nil {
 		return domain.Booking{}, fmt.Errorf("reserve booking: %w", err)
 	}
 	return booking, nil
